@@ -84,7 +84,7 @@ class Index(object):
 
         This entry means that the term 'a' appears in document 0 (with tf
         weight 1) and in document 10 (with tf weight 2). The term 'b'
-        appears in document 5 (with tf-idf weight 1).
+        appears in document 5 (with tf weight 1).
 
         Note that documents should start at index 1 to match the relevance files.
 
