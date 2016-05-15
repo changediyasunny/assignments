@@ -7,12 +7,15 @@ import re
 import numpy as np
 
 
+
+
 class Index(object):
 
     def __init__(self, docs=None):
         """ Do not modify.
         Create a new index by parsing the given file containing documents,
         one per line."""
+        
         self.documents = docs
         if docs:
             self.documents = [self.tokenize(d) for d in self.documents]
@@ -20,6 +23,7 @@ class Index(object):
             self.index = self.create_tf_index(self.documents, self.doc_freqs)
             self.doc_lengths, self.mean_doc_length = self.compute_doc_lengths(self.index)
             self.doc_norms = self.compute_doc_norms(self.index, len(self.documents), self.doc_freqs)
+
 
     def compute_doc_norms(self, index, n_docs, doc_freqs):
         """
@@ -51,9 +55,32 @@ class Index(object):
         >>> norms[0] # doctest:+ELLIPSIS
         0.444...
         """
-        ###TODO
-        pass
-
+        
+        norms = defaultdict(lambda:0)
+        
+        for word, lists in index.items():
+        	
+        	for doc_id, tf in lists:
+        		
+        		tf_weight = float(1.0 + math.log10(tf))
+        		try:
+        			df_weight = float(math.log10( n_docs/doc_freqs[word]) )
+        		except:
+        			df_weight = 0.0
+        		
+        		try:
+        			norms[doc_id] = norms[doc_id] + ((tf_weight * df_weight)**2)
+        		except IndexError:
+        			norms[doc_id] = (tf_weight * df_weight)**2
+        
+        
+        for key, value in norms.items():
+        	norms[key] = float(value ** 0.5)
+        
+        
+        return norms	
+        
+        
     def compute_doc_lengths(self, index):
         """
         Count the number of terms in each document. Also return the mean value.
@@ -71,8 +98,28 @@ class Index(object):
         >>> mean
         6.0
         """
-        ###TODO
-        pass
+        
+        length_dict = defaultdict(lambda:0.0)
+        mean = 0.0
+        
+        for key, list1 in index.items():
+        	
+        	for doc_id, lent in list1:
+        		
+        		try:
+        			length_dict[doc_id] += float(lent) 
+        		except IndexError:
+        			length_dict[doc_id] = float(lent)
+        
+        try:
+        	mean = float( sum(length_dict.values())/(len(length_dict)) )
+        except ZeroDivisionError:
+        	mean = 0.0
+        
+        
+        return length_dict, mean
+        
+        
 
     def create_tf_index(self, docs, doc_freqs):
         """
@@ -84,7 +131,7 @@ class Index(object):
 
         This entry means that the term 'a' appears in document 0 (with tf
         weight 1) and in document 10 (with tf weight 2). The term 'b'
-        appears in document 5 (with tf-idf weight 1).
+        appears in document 5 (with tf weight 1).
 
         Note that documents should start at index 1 to match the relevance files.
 
@@ -98,9 +145,19 @@ class Index(object):
         >>> index['a']
         [[1, 2.0], [2, 1.0]]
         """
-        ###TODO
-        pass
-
+        
+        my_dict = defaultdict(list)
+        
+        for i, token_list in enumerate(docs):
+        	
+        	for toks in set(token_list):
+        		
+        		my_dict[toks].append( [ i+1, float(token_list.count(toks)) ])
+        
+      
+        return my_dict
+        		
+        		
     def count_doc_frequencies(self, docs):
         """
         Params:
@@ -117,8 +174,17 @@ class Index(object):
         >>> res['c']
         1.0
         """
-        ###TODO
-        pass
+        
+        doc_freqs = defaultdict(lambda:0.0)
+        
+        for token_list in docs:
+        
+            for word in set(token_list):
+            
+                doc_freqs[word] += 1.0
+        
+        return doc_freqs
+        
 
     def query_to_vector(self, query_terms):
         """ Convert a list of query terms into a dict mapping each term to its
@@ -148,9 +214,20 @@ class Index(object):
         >>> res['b'] # doctest:+ELLIPSIS
         0.176...
         """
-        ###TODO
-        pass
+        query_dict = {}
+        
+        N = len(self.documents)
+        
+        for query in query_terms:
 
+        	df = self.doc_freqs[query]
+        	
+        	if df > 0:
+        		query_dict[query] = float(math.log10( N/df))
+        
+        return query_dict
+        
+        
     def tokenize(self, document):
         """ DO NOT MODIFY.
         Convert a string representing one document into a list of
@@ -161,3 +238,7 @@ class Index(object):
         ['hi', 'there', "what's", 'going', 'on', 'first-class']
         """
         return [t.lower() for t in re.findall(r"\w+(?:[-']\w+)*", document)]
+        
+        
+        
+        

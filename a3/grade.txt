@@ -1,0 +1,56 @@
+New Grade: 50/50
+I fixed the error in condprob -> cond_prob
+Grade: 30.00/50.00
+
+2 Deduction(s):
+
+--------------
+#1: 10.00 points
+Failing test: test_get_word_probability: 
+        @points=10
+        
+Traceback (most recent call last):
+  File "assignments-sol/a3/a3_test.py", line 17, in test_get_word_probability
+    self.assertAlmostEqual(nb.get_word_probability('spam', 'a'), 0.25, 2)
+  File "students/changediyasunny/a3/classify.py", line 83, in get_word_probability
+    return self.condprob[term][0]
+AttributeError: 'NaiveBayes' object has no attribute 'condprob'
+
+source:
+    def test_get_word_probability(self):
+         """
+         @points=10
+         """
+         docs = [Document(label='spam', tokens=['a', 'b']), Document(label='spam', tokens=['b', 'c']), Document(label='ham', tokens=['c', 'd'])]
+         nb = NaiveBayes()
+         nb.train(docs)
+         self.assertAlmostEqual(nb.get_word_probability('spam', 'a'), 0.25, 2)
+         self.assertAlmostEqual(nb.get_word_probability('spam', 'b'), 0.375, 3)
+         self.assertAlmostEqual(nb.get_word_probability('spam', 'c'), 0.25, 3)
+--------------
+
+--------------
+#2: 10.00 points
+Failing test: test_get_word_probability2: 
+        @points=10
+        
+Traceback (most recent call last):
+  File "assignments-sol/a3/a3_test.py", line 28, in test_get_word_probability2
+    self.assertAlmostEqual(nb.get_word_probability('ham', 'a'), 0.167, 3)
+  File "students/changediyasunny/a3/classify.py", line 85, in get_word_probability
+    return self.condprob[term][1]
+AttributeError: 'NaiveBayes' object has no attribute 'condprob'
+
+source:
+    def test_get_word_probability2(self):
+         """
+         @points=10
+         """
+         docs = [Document(label='spam', tokens=['a', 'b']), Document(label='spam', tokens=['b', 'c']), Document(label='ham', tokens=['c', 'd'])]
+         nb = NaiveBayes()
+         nb.train(docs)
+         self.assertAlmostEqual(nb.get_word_probability('ham', 'a'), 0.167, 3)
+         self.assertAlmostEqual(nb.get_word_probability('ham', 'b'), 0.167, 3)
+         self.assertAlmostEqual(nb.get_word_probability('ham', 'c'), 0.333, 3)
+--------------
+

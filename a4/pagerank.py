@@ -31,9 +31,34 @@ def compute_pagerank(urls, inlinks, outlinks, b=.85, iters=20):
     0.333...
     """
     ###TODO
-    pass
-
-
+    
+    """
+    R(u) = (1 - b)/N + b * sum( inlinks of u/outlink-number)
+    
+    """
+        
+    Ru = SortedDict()
+    Rv = SortedDict()
+    
+    size = len(urls)
+    
+    # Initialize to 1.0 all URL's
+    for k in urls:
+        Ru.setdefault(k, 1.0)
+    
+    # Page Rank definition
+    for i in range(iters):
+        
+        for url in urls:
+        	
+            try:
+                Ru[url] = ((1-b)/size) + b * sum([Ru[x]/len(outlinks[x]) for x in inlinks[url] if len(outlinks[x])])
+            except:
+                pass
+    
+    return Ru
+    
+    
 def get_top_pageranks(inlinks, outlinks, b, n=50, iters=20):
     """
     >>> inlinks = SortedDict({'a': ['c'], 'b': set(['a']), 'c': set(['a', 'b'])})
@@ -45,7 +70,19 @@ def get_top_pageranks(inlinks, outlinks, b, n=50, iters=20):
     ('a', 0.6666...
     """
     ###TODO
-    pass
+        
+    Ru = SortedDict()
+    final = SortedDict()
+	
+	# Get all URL by ORed with Inlinks & outlinks
+    urls = SortedSet(inlinks.keys()) | SortedSet(outlinks.keys())
+    
+    # returned is a SortedDict()
+    res = compute_pagerank(urls, inlinks, outlinks, b, iters)
+    
+    final = ( sorted(res.items(), key=lambda x:x[1], reverse=True) )
+    
+    return final[:n]
 
 
 def read_names(path):
@@ -71,8 +108,27 @@ def get_links(names, html):
     SortedSet(['Gerald_Jay_Sussman'], key=None, load=1000)
     """
     ###TODO
-    pass
-
+    
+    my_set = SortedSet()
+    soup = BeautifulSoup(html,'lxml')
+    
+    for link in soup.find_all('a'):
+    	
+    	if link.get('href'):
+    		
+    		count = 0
+    		for page in names:	
+    			if count == 0:
+    				if '/wiki/'+page == link['href']:
+    					count = 1
+    					my_set.add(page)
+    			# to early terminate
+    			elif count == 1:
+    				break
+    ###
+    
+    return my_set
+    
 def read_links(path):
     """
     Read the html pages in the data folder. Create and return two SortedDicts:
@@ -90,9 +146,37 @@ def read_links(path):
       A (inlinks, outlinks) tuple, as defined above (i.e., two SortedDicts)
     """
     ###TODO
-    pass
-
-
+    
+    inlinks = SortedDict()
+    outlinks = SortedDict()
+    
+    names_dict = read_names(path)
+    
+    for page in names_dict:
+    	
+    	with open(path + os.sep + page, 'r') as fp:
+    		html_page = fp.readlines()
+    	
+    	# Get links
+    	temp_links = get_links(names_dict, str(html_page))
+    	
+    	# remove self link without checking, may save some time
+    	try:
+    		temp_links.remove(page)
+    	except:
+    		pass
+    		    		
+    	# Count outlinks
+    	outlinks[page] = temp_links
+    	
+    	inlinks.setdefault(page,SortedSet())
+    	# count inlinks from same single page-name
+    	for link in outlinks[page]:
+            inlinks.setdefault(link,SortedSet()).add(page)
+    
+    return inlinks, outlinks
+    
+    
 def print_top_pageranks(topn):
     """ Do not modify. Print a list of name/pagerank tuples. """
     print('Top page ranks:\n%s' % ('\n'.join('%s\t%.5f' % (u, v) for u, v in topn)))

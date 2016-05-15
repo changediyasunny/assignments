@@ -13,7 +13,7 @@ from flask import request
 from searcher import Index
 
 app = Flask(__name__)
-my_index = Index('documents.txt.gz')
+my_index = Index('documents.txt')
 
 
 def results2string(doc_ids):

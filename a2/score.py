@@ -4,6 +4,7 @@ import abc
 from collections import defaultdict
 import math
 
+
 import index
 
 
@@ -27,9 +28,15 @@ def idf(term, index):
     >>> idf('e', idx) # doctest:+ELLIPSIS
     0.176...
     """
-    ###TODO
-    pass
-
+    
+    df = float(index.doc_freqs[term])
+    N = float(len(index.documents))
+    
+    try:
+    	return (math.log10(N/df))
+    except:
+    	return (0.0)
+    
 
 class ScoringFunction:
     """ An Abstract Base Class for ranking documents by relevance to a
@@ -60,11 +67,19 @@ class RSV(ScoringFunction):
     >>> rsv.score({'a': 1.}, idx)[1]  # doctest:+ELLIPSIS
     0.4771...
     """
-
     def score(self, query_vector, index):
-        ###TODO
-        pass
-
+    
+        RSV_DICT = defaultdict(lambda:0.0)  
+        
+        for doc_word, tf_val_tuple in index.index.items():	
+        	if doc_word in query_vector.keys():
+        		for doc_id, tf_val in tf_val_tuple:
+        			
+        			RSV_DICT[doc_id] += idf(doc_word, index)
+        			
+       	
+       	return RSV_DICT
+       	
     def __repr__(self):
         return 'RSV'
 
@@ -82,11 +97,38 @@ class BM25(ScoringFunction):
     def __init__(self, k=1, b=.5):
         self.k = k
         self.b = b
-
+        
     def score(self, query_vector, index):
-        ###TODO
-        pass
+    
+        BM25_Score = defaultdict(lambda:0)
+        
+        for each_query, query_idf in query_vector.items():
+        
+            if each_query in index.index.keys():
+        	
+                for lists in index.index[each_query]:
+        			
+                    LD = index.doc_lengths[lists[0]]
+                    U = index.mean_doc_length
+                    idf_weight = float( idf(each_query, index) )
+                    try:
+                    	B = (1 - self.b) + (self.b * LD/U)
+                    except:
+                    	B = (1 - self.b)
+        			
+                    numerator = (self.k + 1.0) * float(lists[1])
+                    denominator = self.k * B + lists[1]
+                    try:
+                    	bm_value = float(idf_weight * numerator/denominator)
+                    except ZeroDivisionError:
+                    	bm_value = 0.0
+        		    
+                    BM25_Score[lists[0]] += bm_value
 
+        
+        return BM25_Score
+		
+		
     def __repr__(self):
         return 'BM25 k=%d b=%.2f' % (self.k, self.b)
 
@@ -103,8 +145,33 @@ class Cosine(ScoringFunction):
     0.792857...
     """
     def score(self, query_vector, index):
-        ###TODO
-        pass
-
+        
+        scores_dict = defaultdict(lambda:0.0)
+        
+        for each_query, query_idf in query_vector.items():
+        
+        	if each_query in index.index.keys():
+        	
+        		for lists in index.index[each_query]:
+        			
+        			tf_val = lists[1]
+        			doc_id = lists[0]
+        			
+        			tf_weight = (1.0 + math.log10(tf_val) ) * idf(each_query, index)
+        				
+        			scores_dict[doc_id] += (tf_weight * query_idf)
+        
+        for doc_id in scores_dict:
+        	try:
+        		scores_dict[doc_id] /= index.doc_norms[doc_id]
+        	except ZeroDivisionError:
+        		scores_dict[doc_id] = 0.0
+        
+        
+        return scores_dict
+	
     def __repr__(self):
         return 'Cosine'
+        
+        
+        

@@ -1,8 +1,10 @@
 from collections import defaultdict
 import tarfile
+import re
 import tabulate
 
 import index, evaluate, score
+
 
 
 def parse_relevance_strings(strings):
@@ -14,17 +16,31 @@ def parse_relevance_strings(strings):
     Returns:
       A dict from query id to the list of relevant document ids, as ordered in the file.
 
-    >>> strings = '''1  268 288 304
+    >>> strings = '''1  268 288 304  
     ...
     ... 2  326 334'''
     >>> result = parse_relevance_strings(strings.split('\n'))
     >>> sorted(result.items())
     [(1, [268, 288, 304]), (2, [326, 334])]
     """
-    ###TODO
-    pass
+    
+    result = defaultdict(list)
+    
+    for line in strings:
+    	
+    	if len(line.split()) != 0:
+    		
+    		doc_id = int(line.split()[0])
+    		rest_part = [int(x) for x in line.split()[1:] if len(x)]
+    		
+    		try:
+    			result[doc_id] = rest_part
+    		except IndexError:
+    			continue
 
-
+    return result
+    
+    
 def read_relevances(fname):
     """
     Do not modify.
@@ -41,7 +57,7 @@ def parse_query_strings(strings):
       strings...A list of strings, one per line, from TIME.QUE
     Returns:
       A dict from query id to query text string.
-    >>> string = '''*FIND      1
+    >>> string = '''*FIND      
     ...
     ... KENNEDY ADMINISTRATION PRESSURE ON NGO DINH DIEM TO STOP
     ...
@@ -56,14 +72,42 @@ def parse_query_strings(strings):
     ... *STOP'''
     >>> res = parse_query_strings(string.split('\n'))
     >>> print('%s' % res[1])
-    KENNEDY ADMINISTRATION PRESSURE ON NGO DINH DIEM TO STOP SUPPRESSING THE BUDDHISTS . 
+    KENNEDY ADMINISTRATION PRESSURE ON NGO DINH DIEM TO STOP SUPPRESSING THE BUDDHISTS .
     >>> print('%s' % res[2])
-    EFFORTS OF AMBASSADOR HENRY CABOT LODGE TO GET VIET NAM'S PRESIDENT DIEM TO CHANGE HIS POLICIES OF POLITICAL REPRESSION . 
+    EFFORTS OF AMBASSADOR HENRY CABOT LODGE TO GET VIET NAM'S PRESIDENT DIEM TO CHANGE HIS POLICIES OF POLITICAL REPRESSION .
     """
-    ###TODO
-    pass
+    
+    my_dict = defaultdict(list)
+    
+    temp_dict = defaultdict(list)
+    
+    for line in strings:
+    	
+    	if len(line.split()) != 0:
+    		
+    		if line.startswith('*FIND'):
+    			
+    			try:
+    				idx = int(line.split()[1])
+    			except IndexError:
+    				pass
+    		
+    		elif line.startswith('*STOP'):
+    			pass
+    		else:
+    			# Doc line coming way...
+    			temp_dict[idx].append(line.strip())
 
-
+    
+    for key, lists in temp_dict.items():
+    	
+        temp = ' '.join(lists)
+        my_dict[key] = temp+' '
+    	
+    return my_dict
+    
+    
+    		   
 def read_queries(fname):
     """  Do not modify. Read a map from query id to text."""
     return parse_query_strings(open(fname).readlines())
@@ -87,12 +131,36 @@ def parse_document_strings(strings):
     ...
     ... *STOP'''
     >>> parse_document_strings(string.split('\n'))
-    ['THE ALLIES AFTER NASSAU ', 'THE ROAD TO JAIL IS PAVED WITH ']
+    ['THE ALLIES AFTER NASSAU', 'THE ROAD TO JAIL IS PAVED WITH']
     """
-    ###TODO
-    pass
-
-
+    
+    parsed_list = []
+    idx = -1
+    
+    temp_dict = defaultdict(list)
+    
+    for line in strings:
+    	
+    	if len(line.split()) != 0:
+    		
+    		if line.startswith('*TEXT'):
+    			
+    			idx += 1
+    		
+    		elif line.startswith('*STOP'):
+    			pass
+    		else:
+    			# Doc line coming way...
+    			temp_dict[idx].append(line+' ')
+    
+    for key, lists in temp_dict.items():
+    	
+    	temp = ''.join(lists)
+    	parsed_list.append(temp)
+    	
+    return parsed_list
+    
+    
 def read_documents(fname):
     """ Do not modify. Read a list of documents."""
     return parse_document_strings(open(fname).readlines())
@@ -110,8 +178,11 @@ def read_data():
     return queries, relevances, docs
 
 
+
 def write_results(all_results, fname):
-    """ Do not modify. Write results. """
+    """
+    Do not modify. Write results. 
+    """
     evals = sorted(list(all_results.values())[0].keys())
     headers = ['System'] + evals
     systems = sorted(all_results.keys())
@@ -122,6 +193,7 @@ def write_results(all_results, fname):
     f = open(fname, 'w')
     f.write(tabulate.tabulate(vals, headers, floatfmt=".4f"))
     f.write('\n')
+
 
 def search(query, scorer, index):
     """
@@ -143,8 +215,30 @@ def search(query, scorer, index):
     Returns:
       A list of document ids in descending order of relevance to the query.
     """
-    ###TODO
-    pass
+    
+    # 1. Tokenize
+    query_tokens = index.tokenize(query)
+    
+    # 2. Query tokens --> query Vectors
+    query_vector = index.query_to_vector(query_tokens)
+    
+    # 3. Scorer Functions...
+    scores_dict = scorer.score(query_vector, index)
+    
+    temp_dict = defaultdict(lambda:0.0)
+    
+    for key, values in scores_dict.items():
+    	temp_dict[key] = round(values,6)
+    
+    lists = sorted(temp_dict.items(), key=lambda k:k[1], reverse=True)
+    
+    new_list = []
+    
+    for temp in lists:
+    	new_list.append(int(temp[0]))
+    
+    return new_list
+    
 
 
 def run_all(queries, relevances, docs, indexer, scorers, evaluators, NHITS):
@@ -164,6 +258,7 @@ def run_all(queries, relevances, docs, indexer, scorers, evaluators, NHITS):
             for evaluator in evaluators:
                 evaluation = evaluator.evaluate(hits, relevant)
                 results[str(scorer)][str(evaluator)] += evaluation
+            
     for scorer in scorers:
         for evaluator in evaluators:
             results[str(scorer)][str(evaluator)] /= len(queries)
@@ -177,13 +272,15 @@ def main():
     queries, relevances, docs = read_data()
     NHITS = 10
     indexer = index.Index(docs)
-
+    
+    
     scorers = [score.Cosine(),
                score.RSV(),
                score.BM25(k=1, b=.5),
                score.BM25(k=1, b=1),
                score.BM25(k=2, b=.5),
                score.BM25(k=2, b=1)]
+    
 
     evaluators = [evaluate.Precision(),
                   evaluate.Recall(),
@@ -196,3 +293,6 @@ def main():
 
 if __name__ == '__main__':
     main()
+    
+    
+    

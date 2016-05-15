@@ -42,6 +42,21 @@ class Document(object):
         self.tokens = ' '.join(open(self.filename).readlines()).split()
 
 
+    
+def countTokensofTerm(text_list, vocab):
+    	
+    temp_dict = defaultdict(lambda:0)
+    total = 0
+   	
+    for t in text_list:
+        temp_dict[t] += 1
+   	
+    for t in vocab:
+        total += (temp_dict[t] + 1)
+   		             
+    return temp_dict, total
+
+
 class NaiveBayes(object):
 
     def get_word_probability(self, label, term):
@@ -63,7 +78,12 @@ class NaiveBayes(object):
         0.375
         """
         ###TODO
-        pass
+        
+        if label=='spam':
+            return self.cond_prob[term][0]
+        if label=='ham':
+            return self.cond_prob[term][1]
+        
 
     def get_top_words(self, label, n):
         """ Return the top n words for the specified class, using the odds ratio.
@@ -84,8 +104,28 @@ class NaiveBayes(object):
         [(2.25, 'b'), (1.5, 'a')]
         """
         ###TODO
-        pass
-
+        
+        my_list = []
+        
+        if label == 'spam':
+        	for term, ratio in self.cond_prob.items():
+        		
+        		try:
+        			my_list.append( ( (ratio[0]/ratio[1]), term) )
+        		except:
+        			pass
+        			
+        elif label == 'ham':
+        	for term, ratio in self.cond_prob.items():
+        		
+        		try:
+        			my_list.append( ( (ratio[1]/ratio[0]), term) )
+        		except:
+        			pass
+        
+        
+        return sorted(my_list, key=lambda k:k[0], reverse=True)[:n]
+    
     def train(self, documents):
         """
         Given a list of labeled Document objects, compute the class priors and
@@ -98,8 +138,64 @@ class NaiveBayes(object):
           Nothing.
         """
         ###TODO
-        pass
+        
+        mergedList = []
+        temp_cond_prob = defaultdict(list)
+        
+        self.text_dict = defaultdict(list)
+        self.Nc_dict = defaultdict(lambda:0)
+        self.prior_dict = defaultdict(lambda:0)
+        self.N = len(documents)
+        
+        # Get vocabulary
+        for objs in documents:
+        
+        	mergedList += objs.tokens
+        	
+        	# Get count of docs in Class
+        	if objs.label in ['spam','ham']:
+        		
+        		try:
+        			self.Nc_dict[objs.label] += 1
+        		
+        			# Concate text based on class
+        			self.text_dict[objs.label] += objs.tokens
+        		except:
+        			pass
+        	else:
+        		self.Nc_dict[objs.label] = 0
+        
+        
+        self.vocabulary = set(mergedList)
+        
+        len_of_vocab = len(self.vocabulary)
+        	
+        for clas in ['spam', 'ham']:
+        	
+        	# Get Nc:number of docs in class c
+            Nc = self.Nc_dict[clas]
+        	
+            try:
+                self.prior_dict[clas] = (Nc / self.N)
+            except:
+                self.prior_dict[clas] = 0.0
+        	
+            
+        	# Get Tct for each term in vocab
 
+            Tct_dict, total_tct = countTokensofTerm(self.text_dict[clas], self.vocabulary)
+            
+        	# Condition Probability
+            for terms in self.vocabulary:
+            	
+                try:
+                    temp_cond_prob[terms].append( (Tct_dict[terms] + 1) / total_tct )
+                except:
+                    pass
+        
+        self.cond_prob = temp_cond_prob
+
+    
     def classify(self, documents):
         """ Return a list of strings, either 'spam' or 'ham', for each document.
         Params:
@@ -109,6 +205,35 @@ class NaiveBayes(object):
         """
         ###TODO
         pass
+        
+        predict = []
+         
+        score = defaultdict(lambda: 0)
+                
+        for objs in documents:
+        	
+        	score['spam'] = 0
+        	score['ham'] = 0
+        	cnt = 0
+        	for clas in ['spam','ham']:
+        	
+        		score[clas] = math.log10(self.prior_dict[clas])
+        	
+        		for term in objs.tokens:
+        			if term in self.vocabulary:
+        				try:
+        					score[clas] += math.log10(self.cond_prob[term][cnt]) 
+        				except:
+        					pass
+        		cnt += 1
+        
+        	if score['spam'] > score['ham']:
+        		predict.append('spam')
+        	elif score['spam'] < score['ham']:
+        		predict.append('ham')
+        
+        return predict
+        
 
 def evaluate(predictions, documents):
     """ Evaluate the accuracy of a set of predictions.
@@ -124,7 +249,37 @@ def evaluate(predictions, documents):
       Tuple of three floats, defined above.
     """
     ###TODO
-    pass
+    
+    truth = 0.0
+    ham_false = 0.0
+    spam_false = 0.0
+    
+    for i, objs in enumerate(documents):
+    	
+    	if objs.label == 'spam':
+    		
+    		if objs.label == predictions[i]:
+    			truth += 1.0
+    		elif objs.label != predictions[i]:
+    			spam_false += 1.0
+    	elif objs.label == 'ham':
+    	
+    		if objs.label == predictions[i]:
+    			truth += 1.0
+    		elif objs.label != predictions[i]:
+    			ham_false += 1.0
+    	else:
+    		pass
+    try:	
+    	X = float( truth / (truth + spam_false + ham_false) )
+    except:
+    	X = 0.0
+    	
+    Y = float(ham_false)
+    Z = float(spam_false)
+    
+    return (X,Y,Z)
+    
 
 def main():
     """ Do not modify. """
@@ -146,6 +301,6 @@ def main():
     print('accuracy=%.3f, %d false spam, %d missed spam' % (results[0], results[1], results[2]))
     print('top ham terms: %s' % ' '.join('%.2f/%s' % (v,t) for v, t in nb.get_top_words('ham', 10)))
     print('top spam terms: %s' % ' '.join('%.2f/%s' % (v,t) for v, t in nb.get_top_words('spam', 10)))
-
+    
 if __name__ == '__main__':
     main()
